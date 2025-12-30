@@ -80,6 +80,15 @@ const App = () => {
     return () => window.removeEventListener('toggle-app', handleToggle);
   }, []);
 
+  // Communicate visibility to parent (SillyTavern host)
+  useEffect(() => {
+      if (isVisible) {
+          window.parent.postMessage({ type: 'ST_MAKE_INTERACTIVE' }, '*');
+      } else {
+          window.parent.postMessage({ type: 'ST_MAKE_INACTIVE' }, '*');
+      }
+  }, [isVisible]);
+
   // Auto Load
   useEffect(() => {
     const saved = localStorage.getItem('tavern_timekiller_autosave');
@@ -173,44 +182,6 @@ const App = () => {
   const changeGame = (type) => { playSound('click', soundEnabled); setCurrentGame(type); };
 
   if (!isVisible) return null;
-
-  const renderContent = () => {
-    switch (currentGame) {
-      case GameType.GAME_2048: return <Game2048 onBack={() => changeGame(GameType.MENU)} currentTheme={themeMode} soundEnabled={soundEnabled} onSave={handleManualSave} onLoad={handleManualLoad} gameState={game2048State} setGameState={setGame2048State} />;
-      case GameType.MINESWEEPER: return <Minesweeper onBack={() => changeGame(GameType.MENU)} currentTheme={themeMode} soundEnabled={soundEnabled} gameState={minesweeperState} setGameState={setMinesweeperState} />;
-      case GameType.FARMING: return <FarmingGame onBack={() => changeGame(GameType.MENU)} currentTheme={themeMode} gameState={farmingState} setGameState={setFarmingState} soundEnabled={soundEnabled} onSave={handleManualSave} onLoad={handleManualLoad} />;
-      case GameType.MEMORY: return <MemoryMatch onBack={() => changeGame(GameType.MENU)} currentTheme={themeMode} soundEnabled={soundEnabled} gameState={memoryState} setGameState={setMemoryState} />;
-      case GameType.TILE_MATCH: return <TileMatch onBack={() => changeGame(GameType.MENU)} currentTheme={themeMode} soundEnabled={soundEnabled} gameState={tileMatchState} setGameState={setTileMatchState} />;
-      case GameType.SNAKE: return <SnakeGame onBack={() => changeGame(GameType.MENU)} currentTheme={themeMode} soundEnabled={soundEnabled} gameState={snakeState} setGameState={setSnakeState} />;
-      case GameType.TIC_TAC_TOE: return <TicTacToe onBack={() => changeGame(GameType.MENU)} currentTheme={themeMode} soundEnabled={soundEnabled} gameState={ticTacToeState} setGameState={setTicTacToeState} />;
-      case GameType.TETRIS: return <Tetris onBack={() => changeGame(GameType.MENU)} currentTheme={themeMode} soundEnabled={soundEnabled} gameState={tetrisState} setGameState={setTetrisState} />;
-      case GameType.SUDOKU: return <Sudoku onBack={() => changeGame(GameType.MENU)} currentTheme={themeMode} soundEnabled={soundEnabled} gameState={sudokuState} setGameState={setSudokuState} />;
-      case GameType.WHACK_A_MOLE: return <WhackAMole onBack={() => changeGame(GameType.MENU)} currentTheme={themeMode} soundEnabled={soundEnabled} gameState={whackState} setGameState={setWhackState} />;
-      case GameType.TEXT_ADVENTURE: return <TextAdventure onBack={() => changeGame(GameType.MENU)} currentTheme={themeMode} soundEnabled={soundEnabled} gameState={adventureState} setGameState={setAdventureState} />;
-      case GameType.SETTINGS: return <Settings onBack={() => changeGame(GameType.MENU)} currentTheme={themeMode} setTheme={setThemeMode} customColors={customColors} setCustomColors={setCustomColors} soundEnabled={soundEnabled} setSoundEnabled={setSoundEnabled} particleConfig={particleConfig} setParticleConfig={setParticleConfig} presets={presets} setPresets={setPresets} fontSettings={fontSettings} setFontSettings={setFontSettings} />;
-      default: return (
-          <div className="flex flex-col h-full animate-in slide-in-from-bottom-4 duration-500 overflow-hidden">
-            <h1 className={`text-lg font-bold mb-4 ${theme.colors.textMain} text-center border-b border-white/10 pb-2 tracking-wide shrink-0`}>游戏中心</h1>
-            <div className="flex-1 overflow-y-auto px-1 custom-scrollbar min-h-0 pb-20">
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    <MenuCard title="像素农场" icon={<PlantIcon className={theme.colors.success} />} desc="经营养成" onClick={() => changeGame(GameType.FARMING)} theme={theme} />
-                    <MenuCard title="俄罗斯方块" icon={<TetrisIcon className={theme.colors.primary} />} desc="经典消除" onClick={() => changeGame(GameType.TETRIS)} theme={theme} />
-                    <MenuCard title="AI 冒险" icon={<BrainIcon className={theme.colors.accent} />} desc="文字跑团" onClick={() => changeGame(GameType.TEXT_ADVENTURE)} theme={theme} />
-                    <MenuCard title="贪吃蛇" icon={<SnakeIcon className={theme.colors.accent} />} desc="反应挑战" onClick={() => changeGame(GameType.SNAKE)} theme={theme} />
-                    <MenuCard title="打地鼠" icon={<span className="text-3xl">🐹</span>} desc="手速测试" onClick={() => changeGame(GameType.WHACK_A_MOLE)} theme={theme} />
-                    <MenuCard title="方块消消" icon={<TileIcon className="text-purple-400" />} desc="益智三消" onClick={() => changeGame(GameType.TILE_MATCH)} theme={theme} />
-                    <MenuCard title="数独" icon={<GridNumberIcon className="text-blue-400" />} desc="逻辑推理" onClick={() => changeGame(GameType.SUDOKU)} theme={theme} />
-                    <MenuCard title="2048" icon={<RectGridIcon className="text-yellow-400" />} desc="数字合成" onClick={() => changeGame(GameType.GAME_2048)} theme={theme} />
-                    <MenuCard title="扫雷" icon={<BombIcon className="text-red-500" />} desc="排雷解谜" onClick={() => changeGame(GameType.MINESWEEPER)} theme={theme} />
-                    <MenuCard title="记忆翻牌" icon={<BrainIcon className="text-pink-400" />} desc="记忆训练" onClick={() => changeGame(GameType.MEMORY)} theme={theme} />
-                    <MenuCard title="井字棋" icon={<HashIcon className="text-cyan-400" />} desc="策略对战" onClick={() => changeGame(GameType.TIC_TAC_TOE)} theme={theme} />
-                    <MenuCard title="设置" icon={<SettingsIcon className={theme.colors.textDim} />} desc="系统选项" onClick={() => changeGame(GameType.SETTINGS)} theme={theme} />
-                </div>
-            </div>
-          </div>
-      );
-    }
-  };
 
   return (
     <div className="w-full h-screen relative bg-transparent overflow-hidden">
