@@ -91,9 +91,19 @@
         };
 
         // 获取用户名 ({{user}}) 和 角色名 ({{char}})
-        // SillyTavern 的全局变量通常是 name1 (User) 和 name2 (Character)
-        const userName = window.name1 || '旅行者';
-        const charName = window.name2 || '伙伴';
+        // 优先使用 SillyTavern 上下文 API，回退使用 window 全局变量
+        let userName = 'User';
+        let charName = 'Character';
+
+        if (window.SillyTavern && typeof window.SillyTavern.getContext === 'function') {
+            const context = window.SillyTavern.getContext();
+            userName = context.name1 || userName;
+            charName = context.name2 || charName;
+        } else {
+            // Legacy / Fallback
+            userName = window.name1 || userName;
+            charName = window.name2 || charName;
+        }
 
         iframe.contentWindow.postMessage({
             type: 'TK_SYNC_DATA',
@@ -108,8 +118,11 @@
     // 执行 SillyTavern Slash Command
     const executeSlashCommand = (command) => {
         // 尝试调用酒馆的全局命令处理器
-        if (window.slash_commands && typeof window.slash_commands.processSlashCommand === 'function') {
-            window.slash_commands.processSlashCommand(command);
+        // 检查 window.slash_commands 或 window.SillyTavern.slash_commands
+        const cmdHandler = window.slash_commands || (window.SillyTavern && window.SillyTavern.slash_commands);
+        
+        if (cmdHandler && typeof cmdHandler.processSlashCommand === 'function') {
+            cmdHandler.processSlashCommand(command);
         } else {
             console.warn('Tavern Timekiller: Slash commands API not found.');
         }
@@ -131,7 +144,7 @@
         if (event.data && event.data.type === 'TK_REQUEST_SYNC') {
             syncTavernData();
         }
-        // 执行酒馆命令 (新增)
+        // 执行酒馆命令
         if (event.data && event.data.type === 'TK_EXECUTE_COMMAND') {
             executeSlashCommand(event.data.payload);
         }
