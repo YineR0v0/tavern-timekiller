@@ -1,5 +1,22 @@
 
 window.TK.themes = {
+  tavern: {
+    name: '酒馆同步 (ST)',
+    isTavern: true, // Special flag to indicate dynamic syncing
+    colors: {
+      bgBase: 'bg-[var(--tk-st-bg-base)]',
+      bgHeader: 'bg-[var(--tk-st-bg-header)]',
+      textMain: 'text-[var(--tk-st-text-main)]',
+      textDim: 'text-[var(--tk-st-text-dim)]',
+      border: 'border-[var(--tk-st-border)] border',
+      primary: 'bg-[var(--tk-st-primary)]',
+      primaryHover: 'hover:opacity-90',
+      accent: 'text-[var(--tk-st-primary)]', // Use primary as accent usually fits ST themes
+      panel: 'bg-[var(--tk-st-panel)]',
+      success: 'text-green-500',
+      danger: 'text-red-500',
+    }
+  },
   dark: {
     name: '深色模式',
     colors: {
