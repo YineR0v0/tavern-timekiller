@@ -2,7 +2,7 @@
 window.TK.TextAdventure = ({ 
   onBack, currentTheme, soundEnabled, gameState, setGameState
 }) => {
-  const { themes, playSound, generateAdventureResponse } = window.TK;
+  const { themes, playSound, generateAdventureResponse, executeSTCommand, showTavernToast } = window.TK;
   const theme = themes[currentTheme];
   const [input, setInput] = React.useState('');
   const scrollRef = React.useRef(null);
@@ -53,6 +53,19 @@ window.TK.TextAdventure = ({
       }
   };
 
+  const handleShare = () => {
+      if (!gameState || gameState.messages.length <= 1) return;
+      
+      // Get the last interaction
+      const lastMsg = gameState.messages[gameState.messages.length - 1];
+      const textToShare = `[AI 冒险记录] ${lastMsg.text.substring(0, 100)}${lastMsg.text.length > 100 ? '...' : ''}`;
+      
+      // Use /comment command to add to chat without triggering AI response
+      executeSTCommand(`/comment ${textToShare}`);
+      showTavernToast("已将最新剧情同步到聊天记录！");
+      playSound('success', soundEnabled);
+  };
+
   const handleKeyDown = (e) => {
       if (e.key === 'Enter') handleSend();
   };
@@ -66,7 +79,9 @@ window.TK.TextAdventure = ({
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
          </button>
          <span className="font-bold text-sm">AI 冒险</span>
-         <div className="w-8" />
+         <button onClick={handleShare} className={`p-2 rounded-lg border ${theme.colors.border} ${theme.colors.panel} hover:bg-opacity-80`} title="发送到聊天">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+         </button>
       </div>
 
       <div ref={scrollRef} className={`flex-1 overflow-y-auto p-2 rounded-lg bg-black/20 border ${theme.colors.border} space-y-3 custom-scrollbar`}>
