@@ -1,14 +1,11 @@
 
-import React, { useEffect } from 'react';
-import { themes } from '../../utils/themes.js';
-import { playSound } from '../../utils/sound.js';
-
-const TicTacToe = ({
+window.TK.TicTacToe = ({
   onBack, currentTheme, soundEnabled, gameState, setGameState
 }) => {
+  const { themes, playSound } = window.TK;
   const theme = themes[currentTheme];
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (!gameState) {
       resetGame();
     }
@@ -63,7 +60,7 @@ const TicTacToe = ({
     });
   };
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (!gameState || gameState.winner || gameState.isXNext) return;
 
     const timer = setTimeout(() => {
@@ -232,5 +229,3 @@ const TicTacToe = ({
     </div>
   );
 };
-
-export default TicTacToe;
