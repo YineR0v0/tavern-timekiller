@@ -130,6 +130,8 @@ const FloatingWindow: React.FC<FloatingWindowProps> = ({
         top: 0,
         left: 0,
         zIndex: 9999,
+        // CRITICAL: pointer-events-auto is required here because the iframe has pointer-events: none
+        pointerEvents: 'auto', 
         ...getStyle()
       }}
       className={`
