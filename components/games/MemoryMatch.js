@@ -1,16 +1,13 @@
 
-import React, { useEffect } from 'react';
-import { themes } from '../../utils/themes.js';
-import { playSound } from '../../utils/sound.js';
-
 const ICONS = ['🍎', '🍌', '🍒', '🍇', '🍉', '🥝', '🥑', '🍋'];
 
-const MemoryMatch = ({ 
+window.TK.MemoryMatch = ({ 
   onBack, currentTheme, soundEnabled, gameState, setGameState
 }) => {
+  const { themes, playSound } = window.TK;
   const theme = themes[currentTheme];
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (!gameState || !gameState.isGenerated) {
         initializeGame();
     }
@@ -133,5 +130,3 @@ const MemoryMatch = ({
     </div>
   );
 };
-
-export default MemoryMatch;
