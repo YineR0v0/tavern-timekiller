@@ -1,18 +1,15 @@
 
-import React, { useEffect } from 'react';
-import { themes } from '../../utils/themes.js';
-import { playSound } from '../../utils/sound.js';
-
 const TILE_TYPES = ['🌟', '🌙', '⚡', '🔥', '💧', '🍀', '🍎', '🎨', '💎', '🔑'];
 const DOCK_SIZE = 7;
 const OFFSET = 24; 
 
-const TileMatch = ({ 
+window.TK.TileMatch = ({ 
   onBack, currentTheme, soundEnabled, gameState, setGameState
 }) => {
+  const { themes, playSound } = window.TK;
   const theme = themes[currentTheme];
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (!gameState || !gameState.isGenerated) {
         initGame();
     }
@@ -198,5 +195,3 @@ const TileMatch = ({
     </div>
   );
 };
-
-export default TileMatch;
