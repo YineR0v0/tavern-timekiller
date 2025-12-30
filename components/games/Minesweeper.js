@@ -1,18 +1,15 @@
 
-import React, { useEffect } from 'react';
-import { themes } from '../../utils/themes.js';
-import { playSound } from '../../utils/sound.js';
-
 const ROWS = 8;
 const COLS = 8;
 const MINES = 8;
 
-const Minesweeper = ({ 
+window.TK.Minesweeper = ({ 
   onBack, currentTheme, soundEnabled, gameState, setGameState
 }) => {
+  const { themes, playSound } = window.TK;
   const theme = themes[currentTheme];
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (!gameState || !gameState.isGenerated) {
         startNewGame();
     }
@@ -166,5 +163,3 @@ const Minesweeper = ({
     </div>
   );
 };
-
-export default Minesweeper;
