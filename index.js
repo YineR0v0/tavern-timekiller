@@ -36,13 +36,30 @@
     Object.assign(iframe.style, {
         border: 'none', width: '100vw', height: '100vh',
         position: 'fixed', top: '0', left: '0',
-        pointerEvents: 'none',
+        pointerEvents: 'none', // Default to none so we can click through
         background: 'transparent'
+    });
+
+    // Handle messages from the iframe (React app)
+    window.addEventListener('message', (event) => {
+        // Security check: ensure message comes from our iframe
+        // Note: iframe.contentWindow might be null if iframe is removed
+        if (!iframe.contentWindow || event.source !== iframe.contentWindow) return;
+
+        if (event.data && event.data.type === 'ST_MAKE_INTERACTIVE') {
+            iframe.style.pointerEvents = 'auto';
+        }
+        if (event.data && event.data.type === 'ST_MAKE_INACTIVE') {
+            iframe.style.pointerEvents = 'none';
+        }
     });
 
     launcherBtn.onclick = () => {
         if (iframe.contentWindow) {
+            // Send toggle command to React
             iframe.contentWindow.postMessage('TOGGLE_WINDOW', '*');
+        } else {
+            console.error(`${EXTENSION_NAME}: Iframe content window not found`);
         }
     };
 
