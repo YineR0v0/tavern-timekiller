@@ -1,0 +1,304 @@
+
+(function() {
+    // ----------------------------------------------------------------------
+    // TAVERN TIMEKILLER - SILLY TAVERN EXTENSION
+    // ----------------------------------------------------------------------
+    
+    const EXTENSION_ID = 'tavern-timekiller-host';
+    
+    // 1. Cleanup existing instance
+    const oldHost = document.getElementById(EXTENSION_ID);
+    if (oldHost) oldHost.remove();
+
+    console.log("Tavern Timekiller: Loading...");
+
+    // 2. Create Host
+    const host = document.createElement('div');
+    host.id = EXTENSION_ID;
+    host.style.position = 'fixed';
+    host.style.top = '0';
+    host.style.left = '0';
+    host.style.width = '0'; // Minimal footprint
+    host.style.height = '0';
+    host.style.zIndex = '2147483647'; // Max Z-Index
+    document.body.appendChild(host);
+
+    // 3. Shadow DOM for isolation
+    const shadow = host.attachShadow({ mode: 'open' });
+
+    // 4. Launcher Button (Vanilla JS, outside React iframe to be always accessible)
+    const launcherBtn = document.createElement('div');
+    launcherBtn.innerHTML = `
+        <div style="font-size: 24px; line-height: 1;">🌱</div>
+    `;
+    Object.assign(launcherBtn.style, {
+        position: 'fixed',
+        bottom: '20px',
+        right: '20px',
+        width: '50px',
+        height: '50px',
+        backgroundColor: '#1a1b26',
+        border: '2px solid #4ade80',
+        borderRadius: '50%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        cursor: 'pointer',
+        boxShadow: '0 0 15px rgba(74, 222, 128, 0.4)',
+        zIndex: '2147483647',
+        transition: 'transform 0.2s, box-shadow 0.2s',
+        userSelect: 'none'
+    });
+    
+    launcherBtn.onmouseenter = () => {
+        launcherBtn.style.transform = 'scale(1.1)';
+        launcherBtn.style.boxShadow = '0 0 20px rgba(74, 222, 128, 0.6)';
+    };
+    launcherBtn.onmouseleave = () => {
+        launcherBtn.style.transform = 'scale(1)';
+        launcherBtn.style.boxShadow = '0 0 15px rgba(74, 222, 128, 0.4)';
+    };
+    launcherBtn.onclick = () => {
+        const iframe = shadow.querySelector('iframe');
+        if (iframe && iframe.contentWindow) {
+            iframe.contentWindow.postMessage('TOGGLE_WINDOW', '*');
+        } else {
+            alert('Game not loaded. Check console for CSP errors.');
+        }
+    };
+    shadow.appendChild(launcherBtn);
+
+    // 5. Iframe Container
+    const iframe = document.createElement('iframe');
+    Object.assign(iframe.style, {
+        border: 'none',
+        width: '100vw',
+        height: '100vh',
+        position: 'fixed',
+        top: '0',
+        left: '0',
+        pointerEvents: 'none', // Allow clicking through empty space
+        background: 'transparent'
+    });
+    shadow.appendChild(iframe);
+
+    // 6. The React Application Bundle
+    const appHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <!-- External Dependencies -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
+    
+    <style>
+        body { 
+            background: transparent !important; 
+            margin: 0; 
+            overflow: hidden; 
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        #root { 
+            width: 100%; 
+            height: 100%; 
+            pointer-events: none; 
+        }
+        .window-container { pointer-events: auto; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 4px; }
+        .custom-scrollbar:hover::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.25); }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .no-drag { -webkit-app-region: no-drag; }
+        .touch-none { touch-action: none; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script>
+        window.addEventListener('message', (e) => {
+            if (e.data === 'TOGGLE_WINDOW' && window.toggleApp) window.toggleApp();
+        });
+    </script>
+    <script type="text/babel" data-presets="typescript,react">
+        const { useState, useEffect, useRef } = React;
+
+        // --- THEMES & HELPERS ---
+        const themes = {
+            dark: { name: '深色模式', colors: { bgBase: 'bg-slate-900/95', bgHeader: 'bg-slate-800/95', textMain: 'text-slate-200', textDim: 'text-slate-400', border: 'border-slate-700/50', primary: 'bg-indigo-600', panel: 'bg-slate-800', accent: 'text-indigo-400' } },
+            retro: { name: '复古羊皮', colors: { bgBase: 'bg-[#fdf6e3]/95', bgHeader: 'bg-[#eee8d5]/95', textMain: 'text-[#586e75]', textDim: 'text-[#93a1a1]', border: 'border-[#d3cbb7]', primary: 'bg-[#b58900]', panel: 'bg-[#eee8d5]', accent: 'text-[#b58900]' } }
+        };
+        
+        let audioCtx = null;
+        const playSound = (type) => {
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                const now = audioCtx.currentTime;
+                if(type==='click'){osc.frequency.setValueAtTime(600,now);gain.gain.setValueAtTime(0.1,now);gain.gain.linearRampToValueAtTime(0,now+0.05);osc.start(now);osc.stop(now+0.05);}
+                else if(type==='pop'){osc.type='triangle';osc.frequency.setValueAtTime(400,now);osc.frequency.linearRampToValueAtTime(600,now+0.1);gain.gain.setValueAtTime(0.1,now);gain.gain.linearRampToValueAtTime(0,now+0.1);osc.start(now);osc.stop(now+0.1);}
+                else if(type==='success'){osc.frequency.setValueAtTime(500,now);osc.frequency.setValueAtTime(1000,now+0.1);gain.gain.setValueAtTime(0.1,now);gain.gain.linearRampToValueAtTime(0,now+0.3);osc.start(now);osc.stop(now+0.3);}
+            } catch(e){}
+        };
+
+        // --- COMPONENTS ---
+        const FloatingWindow = ({ children, title, theme }) => {
+            const [pos, setPos] = useState({x:20, y:20});
+            const [min, setMin] = useState(false);
+            const [drag, setDrag] = useState(false);
+            const [off, setOff] = useState({x:0,y:0});
+            const ref = useRef(null);
+
+            useEffect(() => {
+                const move = (e) => {
+                    if(drag && ref.current) {
+                        const cx = e.touches?e.touches[0].clientX:e.clientX;
+                        const cy = e.touches?e.touches[0].clientY:e.clientY;
+                        setPos({
+                            x: Math.max(0, Math.min(window.innerWidth - ref.current.offsetWidth, cx - off.x)),
+                            y: Math.max(0, Math.min(window.innerHeight - ref.current.offsetHeight, cy - off.y))
+                        });
+                    }
+                };
+                const end = () => setDrag(false);
+                if(drag) { window.addEventListener('mousemove',move); window.addEventListener('mouseup',end); window.addEventListener('touchmove',move,{passive:false}); window.addEventListener('touchend',end); }
+                return () => { window.removeEventListener('mousemove',move); window.removeEventListener('mouseup',end); window.removeEventListener('touchmove',move); window.removeEventListener('touchend',end); }
+            }, [drag, off]);
+
+            const start = (e) => {
+                if(e.target.closest('button')) return;
+                const cx = e.touches?e.touches[0].clientX:e.clientX;
+                const cy = e.touches?e.touches[0].clientY:e.clientY;
+                setDrag(true); setOff({x:cx-pos.x, y:cy-pos.y});
+            };
+
+            return (
+                <div ref={ref} style={{transform:\`translate(\${pos.x}px,\${pos.y}px)\`}} className={\`window-container fixed top-0 left-0 shadow-2xl flex flex-col overflow-hidden border \${min?'w-40 h-10 rounded-lg':'w-80 h-[500px] rounded-xl'} \${theme.colors.bgHeader} \${theme.colors.border}\`}>
+                    <div onMouseDown={start} onTouchStart={start} className={\`flex items-center justify-between px-3 h-10 shrink-0 cursor-move \${theme.colors.textMain}\`}>
+                        <span className="font-bold text-xs">{min?'展开':title}</span>
+                        <button onClick={()=>setMin(!min)} className="p-1 opacity-70">{min?'+':'-'}</button>
+                    </div>
+                    <div className={\`flex-1 relative transition-opacity \${min?'opacity-0 pointer-events-none':'opacity-100'} \${theme.colors.bgBase} \${theme.colors.textMain}\`}>
+                        <div className="absolute inset-0 p-4 overflow-y-auto custom-scrollbar">{children}</div>
+                    </div>
+                </div>
+            );
+        };
+
+        const FarmingGame = ({ onBack, theme, state, setState }) => {
+            const [tool, setTool] = useState('wheat');
+            const [floats, setFloats] = useState([]);
+            const CROPS = { wheat: {id:'wheat',icon:'🌾',cost:10,sell:20,xp:20,time:3}, corn: {id:'corn',icon:'🌽',cost:25,sell:60,xp:45,time:8}, carrot: {id:'carrot',icon:'🥕',cost:50,sell:130,xp:90,time:15} };
+            
+            useEffect(() => {
+                const t = setInterval(() => {
+                    setState(s => ({...s, plots: s.plots.map(p => {
+                        if(p.cropId && p.plantTime && p.isWatered && !p.isReady && (Date.now()-p.plantTime)/1000>=CROPS[p.cropId].time) return {...p, isReady:true};
+                        return p;
+                    })}));
+                }, 1000);
+                return () => clearInterval(t);
+            }, []);
+
+            useEffect(() => { if(floats.length) setTimeout(()=>setFloats(f=>f.slice(1)),1000); }, [floats]);
+
+            const clickPlot = (id, e) => {
+                const idx = state.plots.findIndex(p=>p.id===id);
+                const p = state.plots[idx];
+                if(!p.isUnlocked) return playSound('fail');
+                let ns = {...state}, s=false;
+                
+                if(tool==='harvest' && p.isReady) {
+                    ns.money+=CROPS[p.cropId].sell; ns.xp+=CROPS[p.cropId].xp;
+                    ns.plots[idx] = {...p, cropId:null, isReady:false, isWatered:false};
+                    s=true; playSound('success'); setFloats(f=>[...f,{id:Date.now(),txt:\`+\${CROPS[p.cropId].sell}\`,x:e.clientX,y:e.clientY}]);
+                } else if(tool==='water' && p.cropId && !p.isWatered && !p.isReady) {
+                    ns.plots[idx].isWatered=true; s=true; playSound('click');
+                } else if(CROPS[tool] && !p.cropId && ns.money>=CROPS[tool].cost) {
+                    ns.money-=CROPS[tool].cost;
+                    ns.plots[idx] = {...p, cropId:tool, plantTime:Date.now(), isReady:false, isWatered:false};
+                    s=true; playSound('pop');
+                }
+
+                if(s) {
+                    if(ns.xp >= ns.level*100) { ns.xp-=ns.level*100; ns.level++; playSound('success'); }
+                    setState(ns);
+                }
+            };
+
+            return (
+                <div className="h-full flex flex-col gap-2 relative">
+                    <div className="flex justify-between border-b border-white/10 pb-2">
+                        <button onClick={onBack}>←</button>
+                        <div className="font-bold">Lv.{state.level} 💰{state.money}</div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                        {state.plots.map(p => (
+                            <button key={p.id} onClick={(e)=>clickPlot(p.id,e)} className={\`aspect-square rounded border-2 flex items-center justify-center text-2xl relative \${!p.isUnlocked?'opacity-50 bg-black/20':p.isWatered?'border-blue-500 bg-blue-900/20':theme.colors.border}\`}>
+                                {!p.isUnlocked?'🔒':p.cropId?(p.isReady?'✨':CROPS[p.cropId].icon):'🌱'}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="flex gap-2 overflow-x-auto py-2 mt-auto border-t border-white/10">
+                        {['water','harvest',...Object.keys(CROPS)].map(t => (
+                            <button key={t} onClick={()=>setTool(t)} className={\`p-2 rounded border min-w-[50px] \${tool===t?theme.colors.primary:'border-white/10'}\`}>
+                                {t==='water'?'💧':t==='harvest'?'✂️':CROPS[t].icon}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [vis, setVis] = useState(true);
+            const [game, setGame] = useState('MENU');
+            const [farm, setFarm] = useState({money:50,xp:0,level:1,plots:Array(9).fill(0).map((_,i)=>({id:i,isUnlocked:i<3}))});
+            
+            useEffect(() => { window.toggleApp = () => setVis(v=>!v); }, []);
+            const theme = themes.dark;
+
+            return vis ? (
+                <FloatingWindow title="酒馆休闲角" theme={theme}>
+                    {game==='MENU' ? (
+                        <div className="grid grid-cols-2 gap-2">
+                            <button onClick={()=>setGame('FARMING')} className={\`p-4 rounded-xl \${theme.colors.panel} hover:opacity-80\`}>
+                                <div className="text-3xl mb-2">🌾</div><div className="text-xs font-bold">像素农场</div>
+                            </button>
+                            <button className={\`p-4 rounded-xl \${theme.colors.panel} opacity-50 cursor-not-allowed\`}>
+                                <div className="text-3xl mb-2">🚧</div><div className="text-xs font-bold">开发中</div>
+                            </button>
+                        </div>
+                    ) : (
+                        <FarmingGame onBack={()=>setGame('MENU')} theme={theme} state={farm} setState={setFarm} />
+                    )}
+                </FloatingWindow>
+            ) : null;
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
+    `;
+
+    iframe.contentWindow.document.open();
+    iframe.contentWindow.document.write(appHtml);
+    iframe.contentWindow.document.close();
+
+})();
