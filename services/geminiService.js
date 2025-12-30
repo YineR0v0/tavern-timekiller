@@ -4,6 +4,7 @@
 window.TK.generateAdventureResponse = async (history, userInput) => {
   const apiKey = window.TK.config?.apiKey || '';
   const userName = window.TK.config?.userName || 'User';
+  const charName = window.TK.config?.charName || 'Character';
   
   if (!apiKey) {
       return "请在[设置] -> [API & 杂项]中配置 Gemini API Key 以启用 AI 功能。";
@@ -17,7 +18,7 @@ window.TK.generateAdventureResponse = async (history, userInput) => {
               contents: [
                   { 
                     role: "user", 
-                    parts: [{ text: `System: You are a Dungeon Master for a text adventure game. The player's name is ${userName}. Keep responses short (under 100 words) and engaging. Be creative.` }] 
+                    parts: [{ text: `System: You are a Dungeon Master for a text adventure game. The player is ${userName} ({{user}}). The current companion character is ${charName} ({{char}}). You should incorporate ${charName} into the adventure if appropriate. Keep responses short (under 100 words), engaging, and interactive. Be creative.` }] 
                   },
                   ...history.map(h => ({
                       role: h.role === 'model' ? 'model' : 'user',
