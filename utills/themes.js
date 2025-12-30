@@ -1,5 +1,5 @@
 
-export const themes = {
+window.TK.themes = {
   dark: {
     name: '深色模式',
     colors: {
