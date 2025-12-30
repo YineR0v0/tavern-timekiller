@@ -1,18 +1,15 @@
 
-import React, { useEffect, useRef } from 'react';
-import { themes } from '../../utils/themes.js';
-import { playSound } from '../../utils/sound.js';
-
 const GAME_DURATION = 30; 
 
-const WhackAMole = ({ 
+window.TK.WhackAMole = ({ 
   onBack, currentTheme, soundEnabled, gameState, setGameState
 }) => {
+  const { themes, playSound } = window.TK;
   const theme = themes[currentTheme];
-  const timerRef = useRef(null);
-  const moleTimerRef = useRef(null);
+  const timerRef = React.useRef(null);
+  const moleTimerRef = React.useRef(null);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (!gameState) {
       resetGame();
     }
@@ -145,5 +142,3 @@ const WhackAMole = ({
     </div>
   );
 };
-
-export default WhackAMole;
