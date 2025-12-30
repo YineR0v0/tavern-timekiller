@@ -3,27 +3,26 @@
     const EXTENSION_ID = 'tavern-timekiller-host';
     const SCRIPT_NAME = 'index.js';
     
-    // --- 1. 路径检测逻辑 ---
+    // --- 1. 路径检测逻辑 (Robust Path Detection) ---
+    // Try to find the script tag that loaded this script to determine the base path
     let extensionRoot = '';
-    if (document.currentScript && document.currentScript.src) {
-        extensionRoot = document.currentScript.src;
-        extensionRoot = extensionRoot.substring(0, extensionRoot.lastIndexOf('/'));
-    } else {
-        const scripts = document.querySelectorAll('script');
-        for (const script of scripts) {
-             if (script.src && script.src.includes(SCRIPT_NAME)) {
-                 if (script.src.includes('tavern-timekiller')) {
-                    extensionRoot = script.src.substring(0, script.src.lastIndexOf('/'));
-                    break;
-                 }
+    const scripts = document.querySelectorAll('script');
+    for (const script of scripts) {
+         if (script.src && script.src.includes(SCRIPT_NAME)) {
+             // Look for the specific extension folder name if possible
+             if (script.src.includes('tavern-timekiller')) {
+                extensionRoot = script.src.substring(0, script.src.lastIndexOf('/'));
+                break;
              }
-        }
+         }
+    }
+    
+    // Fallback: use default relative path if detection failed (Standard ST install)
+    if (!extensionRoot) {
+        extensionRoot = 'scripts/extensions/tavern-timekiller';
     }
 
-    if (!extensionRoot || extensionRoot.length < 5) {
-        console.warn('Tavern Timekiller: Path detection failed, using default path.');
-        extensionRoot = '/scripts/extensions/tavern-timekiller';
-    }
+    console.log('[Tavern Timekiller] Extension Root:', extensionRoot);
 
     // --- 2. 清理旧实例 ---
     const oldHost = document.getElementById(EXTENSION_ID);
@@ -34,7 +33,8 @@
     host.id = EXTENSION_ID;
     Object.assign(host.style, {
         position: 'fixed', top: '0', left: '0', width: '0', height: '0', 
-        zIndex: '20000' 
+        zIndex: '20000',
+        pointerEvents: 'none' // Host itself shouldn't block clicks
     });
     document.body.appendChild(host);
 
@@ -57,21 +57,26 @@
         backgroundColor: '#1a1b26', border: '2px solid #4ade80', borderRadius: '50%',
         color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
         cursor: 'pointer', boxShadow: '0 4px 15px rgba(0,0,0,0.5)', zIndex: '20001',
-        userSelect: 'none', transition: 'transform 0.1s', touchAction: 'none'
+        userSelect: 'none', transition: 'transform 0.1s', touchAction: 'none',
+        pointerEvents: 'auto' // Button must be clickable
     });
 
+    launcherBtn.title = "Tavern Timekiller";
     launcherBtn.onmouseenter = () => launcherBtn.style.transform = 'scale(1.1)';
     launcherBtn.onmouseleave = () => launcherBtn.style.transform = 'scale(1)';
 
     // --- 5. 创建 iframe ---
     const iframe = document.createElement('iframe');
-    iframe.src = `${extensionRoot}/index.html`;
+    // Ensure src does not double slashes if root ends with /
+    const cleanRoot = extensionRoot.endsWith('/') ? extensionRoot.slice(0, -1) : extensionRoot;
+    iframe.src = `${cleanRoot}/index.html`;
     
     Object.assign(iframe.style, {
         border: 'none', width: '100vw', height: '100vh',
         position: 'fixed', top: '0', left: '0',
         pointerEvents: 'none',
-        background: 'transparent'
+        background: 'transparent',
+        zIndex: '20002' // Ensure iframe is above button when active if needed, or managed by App visibility
     });
 
     // --- SillyTavern 数据同步与交互逻辑 ---
@@ -91,18 +96,24 @@
         };
 
         // 获取用户名 ({{user}}) 和 角色名 ({{char}})
-        // 优先使用 SillyTavern 上下文 API，回退使用 window 全局变量
         let userName = 'User';
         let charName = 'Character';
 
-        if (window.SillyTavern && typeof window.SillyTavern.getContext === 'function') {
-            const context = window.SillyTavern.getContext();
-            userName = context.name1 || userName;
-            charName = context.name2 || charName;
-        } else {
-            // Legacy / Fallback
-            userName = window.name1 || userName;
-            charName = window.name2 || charName;
+        // Robust context retrieval
+        try {
+            if (window.SillyTavern && typeof window.SillyTavern.getContext === 'function') {
+                const context = window.SillyTavern.getContext();
+                if (context) {
+                    userName = context.name1 || userName;
+                    charName = context.name2 || charName;
+                }
+            } else {
+                // Fallback for older versions or if API not ready
+                if (typeof window.name1 !== 'undefined') userName = window.name1;
+                if (typeof window.name2 !== 'undefined') charName = window.name2;
+            }
+        } catch (e) {
+            console.warn('[Tavern Timekiller] Error getting context:', e);
         }
 
         iframe.contentWindow.postMessage({
@@ -117,14 +128,11 @@
 
     // 执行 SillyTavern Slash Command
     const executeSlashCommand = (command) => {
-        // 尝试调用酒馆的全局命令处理器
-        // 检查 window.slash_commands 或 window.SillyTavern.slash_commands
         const cmdHandler = window.slash_commands || (window.SillyTavern && window.SillyTavern.slash_commands);
-        
         if (cmdHandler && typeof cmdHandler.processSlashCommand === 'function') {
             cmdHandler.processSlashCommand(command);
         } else {
-            console.warn('Tavern Timekiller: Slash commands API not found.');
+            console.warn('[Tavern Timekiller] Slash commands API not found.');
         }
     };
 
@@ -150,14 +158,13 @@
         }
     });
 
-    // --- 6. 拖动逻辑 ---
+    // --- 6. 拖动逻辑 (Drag & Click Handling) ---
     let isDragging = false;
-    let dragStartTime = 0;
     let startX, startY, initialLeft, initialTop;
+    const DRAG_THRESHOLD = 5;
 
     const handleDragStart = (e) => {
-        isDragging = false;
-        dragStartTime = Date.now();
+        isDragging = false; // Reset drag state
         const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
         const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
         startX = clientX;
@@ -166,6 +173,7 @@
         initialLeft = rect.left;
         initialTop = rect.top;
 
+        // Clear layout positioning to allow absolute
         launcherBtn.style.bottom = 'auto';
         launcherBtn.style.right = 'auto';
         launcherBtn.style.left = `${initialLeft}px`;
@@ -182,11 +190,12 @@
         const dx = clientX - startX;
         const dy = clientY - startY;
 
-        if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+        if (!isDragging && (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD)) {
             isDragging = true;
-            e.preventDefault();
         }
+
         if (isDragging) {
+            e.preventDefault();
             launcherBtn.style.left = `${initialLeft + dx}px`;
             launcherBtn.style.top = `${initialTop + dy}px`;
         }
@@ -196,24 +205,31 @@
         document.removeEventListener(e.type.includes('touch') ? 'touchmove' : 'mousemove', handleDragMove);
         document.removeEventListener(e.type.includes('touch') ? 'touchend' : 'mouseup', handleDragEnd);
         launcherBtn.style.transition = 'transform 0.1s';
-        if (!isDragging && (Date.now() - dragStartTime < 300)) {
+        
+        // If it wasn't a drag, treat it as a click
+        if (!isDragging) {
             handleClick();
         }
     };
 
     const handleClick = () => {
+        console.log('[Tavern Timekiller] Toggle clicked');
         if (iframe.contentWindow) {
             iframe.contentWindow.postMessage('TOGGLE_WINDOW', '*');
         } else {
+            console.warn('[Tavern Timekiller] Iframe not ready, reloading src');
             iframe.src = iframe.src;
         }
     };
 
     launcherBtn.addEventListener('mousedown', handleDragStart);
     launcherBtn.addEventListener('touchstart', handleDragStart, { passive: false });
+    
+    // Fallback: Context menu to force reload/reset
     launcherBtn.addEventListener('contextmenu', (e) => {
         e.preventDefault();
-        if (confirm('Tavern Timekiller: 重载插件？')) iframe.src = iframe.src;
+        const action = confirm('Tavern Timekiller Options:\nOK to Reload Extension\nCancel to Close');
+        if (action) iframe.src = iframe.src;
     });
 
     shadow.appendChild(iframe);
