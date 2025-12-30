@@ -89,9 +89,12 @@ window.TK.App = () => {
   };
 
   // Helper to show native Tavern toast
-  window.TK.showTavernToast = (text) => {
+  window.TK.showTavernToast = (text, severity = 'info') => {
       // Use /echo command from ST script book
-      window.TK.executeSTCommand(`/echo ${text}`);
+      // /echo [severity=info/warning/error/success] (text)
+      // Escape pipes for ST script parser safety
+      const safeText = text.replace(/\|/g, '\\|');
+      window.TK.executeSTCommand(`/echo severity=${severity} ${safeText}`);
   };
 
   // Toggle Listener & Data Sync
