@@ -1,233 +1,231 @@
 
-const GRID_SIZE = 20;
-const SPEED = 130;
-
-window.TK.SnakeGame = ({ 
+window.TK.TicTacToe = ({
   onBack, currentTheme, soundEnabled, gameState, setGameState
 }) => {
   const { themes, playSound } = window.TK;
   const theme = themes[currentTheme];
-  const directionRef = React.useRef('RIGHT');
-  const gameLoopRef = React.useRef(null);
-  const touchStartRef = React.useRef(null);
-
-  const generateFood = (snake) => {
-    let newFood;
-    while (true) {
-      newFood = {
-        x: Math.floor(Math.random() * GRID_SIZE),
-        y: Math.floor(Math.random() * GRID_SIZE)
-      };
-      const onSnake = snake.some(s => s.x === newFood.x && s.y === newFood.y);
-      if (!onSnake) break;
-    }
-    return newFood;
-  };
 
   React.useEffect(() => {
     if (!gameState) {
       resetGame();
-    } else {
-      directionRef.current = gameState.direction;
     }
   }, []);
 
-  const resetGame = () => {
+  const resetGame = (fullReset = false) => {
     setGameState({
-        snake: [{x: 10, y: 10}],
-        food: generateFood([{x: 10, y: 10}]),
-        direction: 'RIGHT',
-        score: 0,
-        gameOver: false,
-        highScore: gameState?.highScore || 0,
-        isPlaying: true
+      board: Array(9).fill(null),
+      isXNext: true,
+      winner: null,
+      difficulty: gameState?.difficulty || 'hard',
+      scores: fullReset ? { player: 0, ai: 0, draw: 0 } : (gameState?.scores || { player: 0, ai: 0, draw: 0 })
     });
-    directionRef.current = 'RIGHT';
     playSound('click', soundEnabled);
   };
 
-  React.useEffect(() => {
-    if (gameState?.isPlaying && !gameState.gameOver) {
-        gameLoopRef.current = setInterval(moveSnake, SPEED);
+  const calculateWinner = (squares) => {
+    const lines = [
+      [0, 1, 2], [3, 4, 5], [6, 7, 8],
+      [0, 3, 6], [1, 4, 7], [2, 5, 8],
+      [0, 4, 8], [2, 4, 6]
+    ];
+    for (let i = 0; i < lines.length; i++) {
+      const [a, b, c] = lines[i];
+      if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) {
+        return squares[a];
+      }
     }
-    return () => {
-        if (gameLoopRef.current) clearInterval(gameLoopRef.current);
-    };
-  }, [gameState?.isPlaying, gameState?.gameOver, gameState?.snake]);
+    return null;
+  };
 
-  const moveSnake = () => {
-      setGameState(prev => {
-         const head = { ...prev.snake[0] };
-      
-         switch (directionRef.current) {
-            case 'UP': head.y -= 1; break;
-            case 'DOWN': head.y += 1; break;
-            case 'LEFT': head.x -= 1; break;
-            case 'RIGHT': head.x += 1; break;
-         }
+  const handleClick = (i) => {
+    if (!gameState || gameState.board[i] || gameState.winner || !gameState.isXNext) return;
 
-         if (
-            head.x < 0 || head.x >= GRID_SIZE ||
-            head.y < 0 || head.y >= GRID_SIZE ||
-            prev.snake.some(s => s.x === head.x && s.y === head.y)
-         ) {
-            playSound('fail', soundEnabled);
-            return { ...prev, gameOver: true, isPlaying: false };
-         }
+    const newBoard = [...gameState.board];
+    newBoard[i] = 'X';
+    
+    const winner = calculateWinner(newBoard);
+    
+    let newScores = { ...gameState.scores };
+    if (winner === 'X') newScores.player++;
+    else if (!newBoard.includes(null)) newScores.draw++;
 
-         const newSnake = [head, ...prev.snake];
-         let newScore = prev.score;
-         let newFood = prev.food;
+    playSound('pop', soundEnabled);
 
-         if (head.x === prev.food.x && head.y === prev.food.y) {
-            newScore += 10;
-            newFood = generateFood(newSnake);
-            playSound('pop', soundEnabled);
-         } else {
-            newSnake.pop();
-         }
-
-         return {
-            ...prev,
-            snake: newSnake,
-            food: newFood,
-            score: newScore,
-            direction: directionRef.current,
-            highScore: Math.max(prev.highScore, newScore)
-         };
-      });
+    setGameState({
+      ...gameState,
+      board: newBoard,
+      isXNext: false,
+      winner: winner || (newBoard.includes(null) ? null : 'Draw'),
+      scores: newScores
+    });
   };
 
   React.useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) e.preventDefault();
-      
-      const current = directionRef.current;
-      if (e.key === 'ArrowUp' && current !== 'DOWN') directionRef.current = 'UP';
-      if (e.key === 'ArrowDown' && current !== 'UP') directionRef.current = 'DOWN';
-      if (e.key === 'ArrowLeft' && current !== 'RIGHT') directionRef.current = 'LEFT';
-      if (e.key === 'ArrowRight' && current !== 'LEFT') directionRef.current = 'RIGHT';
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+    if (!gameState || gameState.winner || gameState.isXNext) return;
 
-  const handleTouchStart = (e) => {
-      touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-  };
+    const timer = setTimeout(() => {
+        makeAiMove();
+    }, 500);
 
-  const handleTouchEnd = (e) => {
-      if (!touchStartRef.current) return;
-      const dx = e.changedTouches[0].clientX - touchStartRef.current.x;
-      const dy = e.changedTouches[0].clientY - touchStartRef.current.y;
-      
-      const current = directionRef.current;
+    return () => clearTimeout(timer);
+  }, [gameState?.isXNext]);
 
-      if (Math.abs(dx) > Math.abs(dy)) {
-          if (Math.abs(dx) > 30) {
-              if (dx > 0 && current !== 'LEFT') directionRef.current = 'RIGHT';
-              else if (dx < 0 && current !== 'RIGHT') directionRef.current = 'LEFT';
+  const makeAiMove = () => {
+      if (!gameState) return;
+      const newBoard = [...gameState.board];
+      let moveIndex = -1;
+
+      if (gameState.difficulty === 'easy') {
+          const available = newBoard.map((v, i) => v === null ? i : null).filter(v => v !== null);
+          if (available.length > 0) {
+              moveIndex = available[Math.floor(Math.random() * available.length)];
           }
       } else {
-          if (Math.abs(dy) > 30) {
-              if (dy > 0 && current !== 'UP') directionRef.current = 'DOWN';
-              else if (dy < 0 && current !== 'DOWN') directionRef.current = 'UP';
-          }
+          moveIndex = getBestMove(newBoard);
       }
-      touchStartRef.current = null;
+
+      if (moveIndex !== -1) {
+          newBoard[moveIndex] = 'O';
+          const winner = calculateWinner(newBoard);
+          let newScores = { ...gameState.scores };
+          
+          if (winner === 'O') {
+              newScores.ai++;
+              playSound('fail', soundEnabled);
+          } else if (!newBoard.includes(null)) {
+              newScores.draw++;
+          } else {
+              playSound('click', soundEnabled);
+          }
+
+          setGameState({
+              ...gameState,
+              board: newBoard,
+              isXNext: true,
+              winner: winner || (newBoard.includes(null) ? null : 'Draw'),
+              scores: newScores
+          });
+      }
   };
 
-  const handleDirBtn = (e, dir) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const current = directionRef.current;
-      if (dir === 'UP' && current !== 'DOWN') directionRef.current = 'UP';
-      if (dir === 'DOWN' && current !== 'UP') directionRef.current = 'DOWN';
-      if (dir === 'LEFT' && current !== 'RIGHT') directionRef.current = 'LEFT';
-      if (dir === 'RIGHT' && current !== 'LEFT') directionRef.current = 'RIGHT';
+  const getBestMove = (board) => {
+      let bestScore = -Infinity;
+      let move = -1;
+      for (let i = 0; i < 9; i++) {
+          if (board[i] === null) {
+              board[i] = 'O';
+              let score = minimax(board, 0, false);
+              board[i] = null;
+              if (score > bestScore) {
+                  bestScore = score;
+                  move = i;
+              }
+          }
+      }
+      return move;
+  };
+
+  const minimax = (board, depth, isMaximizing) => {
+      const winner = calculateWinner(board);
+      if (winner === 'O') return 10 - depth;
+      if (winner === 'X') return depth - 10;
+      if (!board.includes(null)) return 0;
+
+      if (isMaximizing) {
+          let bestScore = -Infinity;
+          for (let i = 0; i < 9; i++) {
+              if (board[i] === null) {
+                  board[i] = 'O';
+                  let score = minimax(board, depth + 1, false);
+                  board[i] = null;
+                  bestScore = Math.max(score, bestScore);
+              }
+          }
+          return bestScore;
+      } else {
+          let bestScore = Infinity;
+          for (let i = 0; i < 9; i++) {
+              if (board[i] === null) {
+                  board[i] = 'X';
+                  let score = minimax(board, depth + 1, true);
+                  board[i] = null;
+                  bestScore = Math.min(score, bestScore);
+              }
+          }
+          return bestScore;
+      }
   };
 
   if (!gameState) return null;
 
   return (
-    <div className="flex flex-col h-full gap-2 relative touch-none" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+    <div className="flex flex-col h-full gap-4 items-center">
        <div className="w-full flex justify-between items-center pb-2 border-b border-opacity-20 border-gray-500 shrink-0">
          <button onClick={() => { onBack(); playSound('click', soundEnabled); }} className={`p-2 rounded-lg border ${theme.colors.border} ${theme.colors.panel} hover:bg-opacity-80`}>
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
          </button>
-         <div className="flex gap-4 text-xs font-bold">
-             <span className={theme.colors.textMain}>得分: {gameState.score}</span>
-             <span className={theme.colors.accent}>最高: {gameState.highScore}</span>
+         
+         <div className="flex gap-2 bg-black/20 p-1 rounded-lg">
+             <button 
+                onClick={() => setGameState({...gameState, difficulty: 'easy'})}
+                className={`text-[10px] px-2 py-1 rounded ${gameState.difficulty === 'easy' ? theme.colors.primary + ' text-white' : 'opacity-50'}`}
+             >
+                 简单
+             </button>
+             <button 
+                onClick={() => setGameState({...gameState, difficulty: 'hard'})}
+                className={`text-[10px] px-2 py-1 rounded ${gameState.difficulty === 'hard' ? theme.colors.primary + ' text-white' : 'opacity-50'}`}
+             >
+                 不可战胜
+             </button>
          </div>
-         <button onClick={resetGame} className={`px-3 py-1.5 rounded-lg font-bold text-xs ${theme.colors.primary} text-white hover:opacity-90`}>
-            {gameState.isPlaying ? '重置' : '开始'}
+
+         <button onClick={() => resetGame(false)} className={`p-2 rounded-lg border ${theme.colors.border} ${theme.colors.panel} hover:bg-opacity-80 active:scale-95`}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
          </button>
       </div>
 
-      <div className={`flex-1 relative rounded-lg border ${theme.colors.border} ${theme.colors.panel} overflow-hidden`}>
-          {!gameState.isPlaying && !gameState.gameOver && (
-              <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-                  <span className={`animate-pulse ${theme.colors.textDim}`}>点击开始游戏</span>
-              </div>
-          )}
-          
-          {gameState.gameOver && (
-              <div className="absolute inset-0 z-30 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in">
-                  <h3 className="text-2xl font-bold text-white mb-2">游戏结束</h3>
-                  <p className="text-white/80 mb-4">最终得分: {gameState.score}</p>
-                  <button onClick={resetGame} className={`px-4 py-2 rounded-full font-bold text-white ${theme.colors.primary}`}>再玩一次</button>
-              </div>
-          )}
+      <div className="grid grid-cols-3 gap-2 p-2 bg-black/10 rounded-xl">
+          {gameState.board.map((cell, i) => (
+              <button
+                key={i}
+                onClick={() => handleClick(i)}
+                disabled={!!cell || !!gameState.winner}
+                className={`
+                    w-20 h-20 md:w-24 md:h-24 rounded-lg text-4xl font-bold flex items-center justify-center transition-all
+                    ${!cell ? `${theme.colors.panel} ${theme.colors.border} border hover:bg-white/5` : ''}
+                    ${cell === 'X' ? theme.colors.primary + ' text-white' : ''}
+                    ${cell === 'O' ? theme.colors.bgHeader + ' ' + theme.colors.textMain : ''}
+                `}
+              >
+                  {cell}
+              </button>
+          ))}
+      </div>
 
-          <div 
-            className="w-full h-full relative"
-            style={{ 
-                display: 'grid', 
-                gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`,
-                gridTemplateRows: `repeat(${GRID_SIZE}, 1fr)`
-            }}
-          >
-              {gameState.snake.map((segment, i) => (
-                  <div 
-                    key={`${segment.x}-${segment.y}-${i}`}
-                    style={{ gridColumn: segment.x + 1, gridRow: segment.y + 1 }}
-                    className={`rounded-sm z-10 ${i === 0 ? theme.colors.primary : theme.colors.textDim} opacity-90`}
-                  />
-              ))}
-              
-              <div 
-                style={{ 
-                    gridColumn: gameState.food.x + 1, 
-                    gridRow: gameState.food.y + 1,
-                    boxShadow: '0 0 10px rgba(255, 0, 0, 0.5)'
-                }}
-                className={`rounded-full bg-red-500 animate-pulse`}
-              />
+      <div className="flex justify-between w-full px-4 text-xs font-medium opacity-80">
+          <div className="text-center">
+              <div className={theme.colors.primary.replace('bg-', 'text-')}>玩家 (X)</div>
+              <div className="text-xl">{gameState.scores.player}</div>
+          </div>
+          <div className="text-center">
+              <div className="text-gray-400">平局</div>
+              <div className="text-xl">{gameState.scores.draw}</div>
+          </div>
+          <div className="text-center">
+              <div className={theme.colors.textMain}>电脑 (O)</div>
+              <div className="text-xl">{gameState.scores.ai}</div>
           </div>
       </div>
-      
-      <div className="md:hidden h-24 grid grid-cols-3 gap-1 mt-2 px-8 select-none touch-none">
-          <div />
-          <button 
-             className="bg-white/10 active:bg-white/20 rounded-lg flex items-center justify-center text-xl shadow"
-             onPointerDown={(e) => handleDirBtn(e, 'UP')}
-          >↑</button>
-          <div />
-          
-          <button 
-             className="bg-white/10 active:bg-white/20 rounded-lg flex items-center justify-center text-xl shadow"
-             onPointerDown={(e) => handleDirBtn(e, 'LEFT')}
-          >←</button>
-          <button 
-             className="bg-white/10 active:bg-white/20 rounded-lg flex items-center justify-center text-xl shadow"
-             onPointerDown={(e) => handleDirBtn(e, 'DOWN')}
-          >↓</button>
-          <button 
-             className="bg-white/10 active:bg-white/20 rounded-lg flex items-center justify-center text-xl shadow"
-             onPointerDown={(e) => handleDirBtn(e, 'RIGHT')}
-          >→</button>
-      </div>
 
+      {gameState.winner && (
+          <div className="absolute inset-0 z-20 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in">
+              <h2 className={`text-3xl font-bold mb-4 ${gameState.winner === 'X' ? theme.colors.success : gameState.winner === 'O' ? theme.colors.danger : theme.colors.textMain}`}>
+                  {gameState.winner === 'X' ? '你赢了!' : gameState.winner === 'O' ? '电脑获胜!' : '平局!'}
+              </h2>
+              <button onClick={() => resetGame(false)} className={`px-6 py-2 rounded-full font-bold text-white shadow-lg ${theme.colors.primary}`}>再来一局</button>
+          </div>
+      )}
     </div>
   );
 };
