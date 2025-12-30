@@ -1,11 +1,9 @@
 
-import React, { useEffect, useRef } from 'react';
+window.TK.ParticleBackground = ({ theme, config }) => {
+  const canvasRef = React.useRef(null);
+  const containerRef = React.useRef(null);
 
-const ParticleBackground = ({ theme, config }) => {
-  const canvasRef = useRef(null);
-  const containerRef = useRef(null);
-
-  useEffect(() => {
+  React.useEffect(() => {
     if (!config.enabled || !canvasRef.current || !containerRef.current) return;
 
     const canvas = canvasRef.current;
@@ -137,5 +135,3 @@ const ParticleBackground = ({ theme, config }) => {
     </div>
   );
 };
-
-export default ParticleBackground;
