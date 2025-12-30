@@ -1,15 +1,12 @@
 
-import React, { useEffect, useRef } from 'react';
-import { themes } from '../../utils/themes.js';
-import { playSound } from '../../utils/sound.js';
-
 const SIZE = 4;
 
-const Game2048 = ({ 
+window.TK.Game2048 = ({ 
   onBack, currentTheme, soundEnabled, onSave, onLoad, gameState, setGameState
 }) => {
+  const { themes, playSound } = window.TK;
   const theme = themes[currentTheme];
-  const touchStart = useRef(null);
+  const touchStart = React.useRef(null);
 
   const createEmptyGrid = () => Array(SIZE).fill(null).map(() => Array(SIZE).fill(0));
 
@@ -27,7 +24,7 @@ const Game2048 = ({
     return currentGrid;
   };
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (!gameState) {
       let newGrid = createEmptyGrid();
       addRandomTile(newGrid);
@@ -125,7 +122,7 @@ const Game2048 = ({
     return true;
   };
 
-  useEffect(() => {
+  React.useEffect(() => {
     const handleKeyDown = (e) => {
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
          e.preventDefault();
@@ -263,5 +260,3 @@ const Game2048 = ({
     </div>
   );
 };
-
-export default Game2048;
