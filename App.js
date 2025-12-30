@@ -68,6 +68,7 @@ window.TK.App = () => {
   const [fontSettings, setFontSettings] = React.useState({ url: '', family: '' });
   const [apiKey, setApiKey] = React.useState('');
   const [userName, setUserName] = React.useState('User');
+  const [charName, setCharName] = React.useState('Character');
   
   // Game States
   const [farmingState, setFarmingState] = React.useState(INITIAL_FARMING_STATE);
@@ -82,6 +83,17 @@ window.TK.App = () => {
   const [whackState, setWhackState] = React.useState(undefined);
   const [adventureState, setAdventureState] = React.useState(undefined);
 
+  // Helper to run SillyTavern slash commands from within the game
+  window.TK.executeSTCommand = (command) => {
+      window.parent.postMessage({ type: 'TK_EXECUTE_COMMAND', payload: command }, '*');
+  };
+
+  // Helper to show native Tavern toast
+  window.TK.showTavernToast = (text) => {
+      // Use /echo command from ST script book
+      window.TK.executeSTCommand(`/echo ${text}`);
+  };
+
   // Toggle Listener & Data Sync
   React.useEffect(() => {
     const handleToggle = () => {
@@ -91,7 +103,7 @@ window.TK.App = () => {
     
     const handleSync = (event) => {
         if (!event.data || event.data.type !== 'TK_SYNC_DATA') return;
-        const { colors, userName: newUserName } = event.data.payload;
+        const { colors, userName: newUserName, charName: newCharName } = event.data.payload;
         
         // Update CSS Variables for 'tavern' theme
         const root = document.documentElement;
@@ -106,6 +118,7 @@ window.TK.App = () => {
         }
         
         if (newUserName) setUserName(newUserName);
+        if (newCharName) setCharName(newCharName);
     };
 
     window.addEventListener('toggle-app', handleToggle);
@@ -225,7 +238,7 @@ window.TK.App = () => {
   if (!isVisible) return null;
 
   // Pass Config to Global for Service Access
-  window.TK.config = { apiKey, userName };
+  window.TK.config = { apiKey, userName, charName };
 
   const renderContent = () => {
     switch (currentGame) {
